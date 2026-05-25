@@ -1,0 +1,46 @@
+domain: ClinicalIntake
+
+entities:
+  DentalModel:
+    id: UUID
+    patient_id: UUID
+    volume_cc: Float64
+    file_url: String
+    vertices: Array[Float64]
+
+contracts:
+  UploadSTL:
+    input:
+      patient_id: UUID
+      payload: String
+    output:
+      model: DentalModel
+    flows:
+      SaveStream:
+        target: Node
+        steps:
+          Buffer: IO.buffer(payload)
+          SaveTemp: IO.write(Buffer)
+      ProcessGeometry:
+        target: Rust
+        requires:
+          - SaveStream
+        steps:
+          LoadMesh: Math.parse(SaveTemp)
+          CalcVolume: Math.volume(LoadMesh)
+      Persist:
+        target: Node
+        requires:
+          - ProcessGeometry
+        steps:
+          UploadCloud: Cloud.upload(SaveTemp)
+          SaveDB: DB.insert(patient_id, CalcVolume)
+
+gateways:
+  LiveSync:
+    target: Node
+    namespace: /clinical-sync
+    room_identifier: sessionId
+    relays:
+      - mesh-upload-progress -> upload-update
+      - geometry-verified -> verification-complete

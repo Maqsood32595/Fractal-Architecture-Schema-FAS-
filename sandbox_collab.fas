@@ -1,0 +1,48 @@
+domain: SandboxCollab
+
+entities:
+  DesignerConnection:
+    id: UUID
+    requester_id: UUID
+    addressee_id: UUID
+    status: String
+  CollabInvitation:
+    id: UUID
+    case_id: UUID
+    inviter_email: String
+    invitee_id: UUID
+    status: String
+
+contracts:
+  NetworkConnections:
+    input:
+      email: String
+      status: String
+    output:
+      success: Boolean
+    flows:
+      ManageConnections:
+        target: Node
+        steps:
+          GetConnections: DB.query()
+          SendInvite: DB.insert()
+          RespondInvite: DB.update()
+
+gateways:
+  LiveSync:
+    target: Node
+    namespace: /sandbox-sync
+    room_identifier: sessionId
+    relays:
+      - camera-sync -> camera-update
+      - drop-pin -> new-pin
+      - share-mesh -> receive-mesh
+      - margin-update -> receive-margin
+      - send-collab-message -> receive-collab-message
+      - share-stl-url -> receive-stl-url
+      - call-user -> incoming-call
+      - make-answer -> call-answered
+      - ice-candidate -> ice-candidate
+      - hang-up -> peer-hung-up
+      - join-dashboard -> dashboard-joined
+      - send-collaboration-invite -> collaboration-invite
